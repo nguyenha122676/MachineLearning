@@ -1,0 +1,941 @@
+MACHINE LEARNING LAB 01.B. NÄIVE BAYES METHODS 
+
+B. PHƯƠNG PHÁP NÄIVE BAYES CHO DỮ LIỆU RỜI RẠC 
+
+1. MULTINOMIAL NAÏVE BAYES 
+
+Ví dụ 1. Tệp dữ liệu multinomial_nb_orders.csv đính kèm chứa dữ liệu phi văn bản với các trường 
+dạng category (nhiều lựa chọn). Bối cảnh là đơn đặt món ăn online, cần dự đoán loại ẩm thực (cuisine) 
+từ nhiều thuộc tính rời rạc: 
+
+•  Dữ liệu đầu vào gồm các trường:city (20 lựa chọn), device (5), user_segment (6), promo (8 + 
+“none” = 9 lựa chọn), fav_ingredient (20), spice_level (5), day_of_week (7), price_bucket (5). 
+
+•  Nhãn cần dự báo: cuisine với 10 lớp (thai, vietnamese, indian, japanese, …, chinese).  
+
+Hãy xây dựng chương trình thực hiện việc đọc dữ liệu từ tệp CSV, sau đó chia dữ liệu theo tỉ lệ train:test 
+= 7:3; Thực hiện huấn luyện bằng mô hình Multinomial Naïve Bayes trên tập Train và thực hiện dự đoán 
+cũng như đánh giá kết quả trên tập Test. 
+
+Trong ví dụ này, chúng ta sẽ bám theo công thức lý thuyết và xây dựng các phương thức như MultiNomial 
+Naïve Bayes từ các thư viện cơ sở, do đó chúng ta chỉ cần các thư viện numpy cho tính toán; pandas để 
+đọc và xử lý dữ liệu; một số gói có độ đo đánh giá của sklearn. Đoạn sau đây khai báo thư viện: 
+
+import numpy as np 
+import pandas as pd 
+
+from sklearn.metrics import accuracy_score, precision_score, recall_score 
+
+Đoạn code dưới đây sử dụng thư viện pandas (được khai báo với tên pd) để đọc dữ liệu từ tệp .csv, chú ý 
+dữ liệu đọc ra sẽ gồm cả tiêu đề cột, mỗi mẫu sẽ là 01 dòng, mỗi trường sẽ là 01 cột và phân biệt theo tên 
+trường (các bạn sửa lại đường dẫn đến dữ liệu): 
+
+# Đọc tệp dữ liệu Cancer.csv trong file data_cancer 
+df = pd.read_csv('D:/Teach_n_Train/Machine  
+
+Learning/exam_n_practice/test_NB/food_order.csv') 
+
+print(df.head() ) 
+
+Dưới đây chúng ta tính các xác suất để một mẫu bất kỳ rơi vào lớp thứ k theo tiên nghiệm  P(k) = Nk/N 
+(tương tự như bài sử dụng Gaussian NB phân loại hoa Iris). Đầu ra đoạn này sẽ là mảng 2 chiều Labels, 
+trong đó ứng với mỗi phần tử i, giá trị đầu (index 0) sẽ là tên của phân lớp đầu ra; giá trị sau (index 1) sẽ 
+là tỉ lệ số phần tử (xác suất) của phân lớp đó (P(k) ). 
+
+target_feature = 'cuisine' 
+
+Y = df[target_feature]  
+labels = np.zeros((len(set(Y)), 2), dtype=Y.dtype)  
+
+# Liệt kê các nhãn (label) khác nhau (từ trường cuisine) k =1, 2, ... C 
+# và tính xác suất P_k của mỗi nhãn. Sử dụng nhãn thay cho chỉ số 
+id = 0 
+for label in set(Y): 
+    labels[id, 0] = label 
+    labels[id, 1] = (Y == label).sum()/len(Y) 
+    id += 1 
+
+Sau đó chúng ta đếm xem mỗi trường có tối đa bao nhiêu lựa chọn từ tập huấn luyện. Chú ý phần này 
+hoàn toàn có thể thay bằng một mảng cố định, do chúng ta đã biết thông tin về dữ liệu ở phần trên.  
+
+Yêu cầu tự giải: Hãy bỏ qua phương thức này và lập 01 mảng để lưu số lựa chọn tối đa ứng với mỗi 
+trường dữ liệu theo thông tin ở đề bài.  
+
+def get_distinct_value_in_fields(): 
+
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+    # Get the column names as a Pandas Index object 
+    column_names_index = df.columns 
+    tmp_list = column_names_index.values 
+    num_nomials_per_fields = np.zeros((len(tmp_list ), 2), dtype=tmp_list.dtype) 
+    # Convert the Index object to a NumPy array 
+    num_nomials_per_fields[:, 0] = tmp_list  
+
+    for i in range(len(tmp_list)): 
+        X = df[tmp_list[i]] 
+        unique_elements = set(X) 
+        # Get the count of unique elements 
+        num_nomials_per_fields[i, 1] = len(unique_elements) 
+
+    return num_nomials_per_fields 
+
+num_labels_M = get_distinct_value_in_fields() 
+print(num_labels_M) 
+
+Đoạn lệnh tiếp theo tính các xác suất thành phần P(xi | k) theo công thức xấp xỉ (qua Smooth Laplacian) 
+P(xi | y = k) ~ lambda i k := [|{xm in class k : x_im = xi}| + alpha] / [Nk + M*alpha] . Đầu vào sẽ cần đến số 
+lựa chọn M của trường thứ i tương ứng (từ đoạn code trước) 
+
+def Pxik_feature_per_class(X, xi, num_nomials_M, alpha = 1.0): 
+#Returns the prob. of feature per class 
+    X = np.array(X) 
+    # count the number of element x_m wich has field i^th : x_im = xi 
+    count = (X == xi).sum() 
+    # P(xi| y = k) ~ lambda_ik := [|{xm in class k : x_im = xi}| + alpha] /  
+
+[N_k + M*alpha] 
+
+    return (count + alpha)/(len(X) + num_nomials_M*alpha) 
+
+Dự đoán phân lớp y = k đầu ra tương ứng với x – đầu vào, dựa theo công thức  
+
+def predict_output_label(X, x_input, p_labels, target_feature): 
+
+y = argmaxk=1,…C P(k)P(X | k) 
+
+    num_labels_M = get_distinct_value_in_fields() 
+    #score for each class  
+    p = np.log(np.array(p_labels[:, 1], dtype=float)) 
+
+    for k in range(len(p)): 
+        #print(X['cuisine']== p_labels[k, 0]) 
+        Xk = X[X[target_feature] == p_labels[k, 0]] 
+        #print(Xk.shape) 
+        for i in range(len(x_input)): 
+            p[k] += np.log(Pxik_feature_per_class(Xk.iloc[:, i+1],  
+
+x_input.iloc[i], num_labels_M[i+1, 1])) 
+
+    y_star = np.argmax(p) 
+
+    return p_labels[y_star, 0] 
+
+Tiếp theo ta chia tập train:test (thủ công) và thực hiện huấn luyện mô hình, sau đó dự đoán cho phần dữ 
+liệu test: 
+
+Train_size = round(len(df)*0.4) 
+X_Train = df[:Train_size] 
+Y_Train = df[target_feature][:Train_size] 
+
+X_Test = df[Train_size:].drop(target_feature, axis = 1).reset_index(drop=True,  
+
+Y_Test = df[target_feature][Train_size:].reset_index(drop=True, inplace=False) 
+
+inplace=False) 
+
+ 
+     
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+Y_pred = np.zeros(len(Y_Test), dtype = Y_Test.dtype)  
+
+print(len(X_Test), len(Y_Test)) 
+print(X_Test.index, Y_Test.index) 
+
+for i in range(len(X_Test)): 
+    Y_pred[i] = predict_output_label(X_Train, X_Test.iloc[i, :],  
+
+labels, target_feature) 
+
+Cuối cùng, chúng ta kiểm tra độ chính xác của kết quả và in thử dự đoán của một đầu vào 
+
+from sklearn.metrics import accuracy_score 
+print(accuracy_score(Y_pred, Y_Test)) 
+print(predict_output_label(X_Train, X_Train.iloc[3, 1:], labels, target_feature) ) 
+
+Bài tập 1: Hãy sử dụng thư viện, chạy và so sánh kết quả. Sau đó tìm hiểu xem tại sao có sự sai lệch như 
+vậy giữa kết quả từ code trên và kết quả từ thư viện. 
+
+2. BERNOULLI NAÏVE BAYES 
+
+Ví dụ 2. Tệp dữ liệu bernoulli_nb_symptoms.csv chứa các mẫu dữ liệu thu thập từ tình trạng sức khỏe 
+của  khoảng  2500  mẫu,  trong  đó  có  30  trường binary  biểu  diễn  triệu  chứng  (0/1),  ví  dụ  fever,  cough, 
+vomiting, loss_taste_smell, dehydration_signs, … Đầu ra chấn đoán (nhãn) gồm các trạng thái liên quan 
+đến bệnh lý ở trường (côt) condition, chia làm 8 phân loại: cold, flu, allergy, migraine, stomach_bug, 
+food_poison, dehydration, covid_like. 
+
+Hãy xây dựng chương trình thực hiện việc đọc dữ liệu từ tệp CSV, sau đó chia dữ liệu theo tỉ lệ train:test 
+= 6:4; Thực hiện huấn luyện bằng mô hình Bernoulli Naïve Bayes trên tập Train và thực hiện dự đoán 
+cũng như đánh giá kết quả trên tập Test. 
+
+Bài tập 2: Hãy vận dụng kiến thức về phương pháp Bernoulli Naïve Bayes cũng như gợi ý từ Ví dụ 1, hãy 
+tự xây dựng chương trình sử dụng phương pháp Bernoulli NB để phân loại dữ liệu này. 
+
+BÀI TẬP: 
+
+Động đất Nepal 2015 là một trận động đất mạnh khoảng 7,8 hoặc 8,1 độ xảy ra hồi 11:56 NST vào thứ 
+bảy ngày 25 tháng 4 năm 2015. Sau khi cuộc động đất xảy ra, đã có rất nhiều cuộc điều tra khảo sát thực 
+địa nhằm xác định thiệt hại của các tòa nhà. Tuy nhiên, tại Nepal có số lượng rất lớn các tòa nhà cũng với 
+đặc tính, điều kiện môi trường xung quanh khác nhau nên việc xác định mức độ thiệt hại của các tòa nhà 
+là rất khó khăn. Mục tiêu của ví dụ này là sử dụng phân loại Naïve Bayes phù hợp nhằm dự đoán mức độ 
+thiệt hại của các tòa nhà trong khu vực dựa trên thông tin về chúng nếu như lại xẩy ra sự kiện tương tự. 
+
+Bộ dữ liệu có thể lấy từ link:  https://www.drivendata.org/competitions/57/nepal-earthquake/  (tham  gia 
+cuộc thi), gồm 3 phần: train_values, train_labels, test_values và submission_format.csv  chứa labels của 
+phần dữ liệu test: 
+
+- train_values: 260,601 bản ghi và 39 trường dữ liệu: chứa thông tin các tòa nhà 
+
+- train_labels: 260,601 bản ghi và 2 trường dữ liệu: chứa mức độ thiệt hại của các tòa nhà 
+
+có trong train_values. 
+
+- test_values: 86,868 bản ghi × 39 trường dữ liệu chứa thông tin các tòa nhà -> Bộ dữ liệu này sẽ được sử 
+dụng để so sánh 
+
+Đầu  ra  cần  dự  đoán  ở  trong  trường  damage_grade,  được  chia  làm  03  mức  1,  2,  3  tương  ứng  với 
+mức độ thiệt hại của tòa nhà: Thiệt hại nhẹ, trung bình, phá hủy hoàn toàn. Mặc dù đầu ra có tính thứ tự, 
+tuy nhiên trong bài tập này chúng ta coi các giá trị này hoàn toàn chỉ mang tính phân loại. 
+
+Hãy đọc dữ liệu và thực hiện các yêu cầu sau 
+
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+Bài 1. Đọc các trường đầu vào có dạng nhiều lựa chọn từ file dữ liệu, bao gồm 
+
+i. 
+
+ii. 
+
+iii. 
+
+land_surface_condition(type:  categorical):  tình  trạng  bề  mặt  của  khu  đất  nơi  công  trình 
+được xây dựng. Giá trị: n, o, t. 
+
+foundation_type(type:  categorical):  cấu  trúc  móng  được  sử  dụng  trong  khi  xây  dựng. 
+Giá trị có thể: h, i, r, u, w. 
+
+roof_type(type:  categorical):  cấu  trúc  mái  được  sử  dụng  trong  khi  xây  dựng.  Giá  trị:  n, 
+q, x. 
+
+iv. 
+
+ground_floor_type(type: categorical): cấu trúc ở tầng trệt. Giá trị: f, m, v, x, z. 
+
+v. 
+
+other_floor_type(type:  categorical):  cấu  trúc  của  các  tầng  bên  trên  tầng  trệt  (trừ  mái). 
+Giá trị: j, q, s, x. 
+
+vi. 
+
+position(type: categorical): vị trí của tòa nhà. Giá trị: j, o, s, t. 
+
+vii. 
+
+viii. 
+
+plan_configuration(type:  categorical):  kế  hoạch  xây  dựng.  Giá  trị:  a,  c,  d,  f,  m,  n,  o,  q, 
+s, u 
+
+legal_ownership_status(type:  categorical):  tình  trạng  hợp  pháp  của  đất  nơi  xây  dựng 
+công trình. Giá trị: a, r, v, w. 
+
+1.  Hãy sử dụng phương pháp MultiNomial đã có, huấn luyện mô hình trên tập training sau đó thực 
+
+hiện dự đoán trên tập test chỉ với các trường dữ liệu trên. 
+
+2.  Thực hiện lại với thư viện Sklearn và so sánh độ chính xác. 
+
+Bài 2. Đọc các trường đầu vào có dạng nhị phân từ file dữ liệu, bao gồm 
+
+i. 
+
+ii. 
+
+iii. 
+
+iv. 
+
+v. 
+
+vi. 
+
+vii. 
+
+viii. 
+
+ix. 
+
+x. 
+
+xi. 
+
+has_superstructure_adobe_mud  (type:  binary):  các  tầng  của  tòa  nhà  có  phải  được  làm 
+bằng gạch bùn hay không. 
+
+has_superstructure_mud_mortar_stone  (type:  binary):  các 
+được làm bằng đá và vữa bùn hay không. 
+
+tầng  của 
+
+tòa  nhà  có  phải 
+
+has_superstructure_stone_flag  (type:  binary):  các  tầng  của  tòa  nhà  có  phải  được  làm 
+bằng đá hay không. 
+
+has_superstructure_cement_mortar_stone  (type:  binary):  các  tầng  của  tòa  nhà  có  phải 
+được làm bằng vữa xi măng và đá hay không. 
+
+has_superstructure_mud_mortar_brick  (type:  binary):  cho  biết  các 
+làm bằng vữa bùn hay không. 
+
+tầng  cao  có  được 
+
+has_superstructure_cement_mortar_brick 
+được làm bằng vữa xi măng - gạch hay không. 
+
+(type:  binary):  cho  biết  các 
+
+tầng  cao  có 
+
+has_superstructure_timber  (type:  binary):  cho  biết  các  tầng  cao  có  được  làm  bằng  gỗ 
+hay không. 
+
+has_superstructure_bamboo  (type:  binary):  cho  biết  các  tầng  cao  có  được  làm  bằng  tre 
+hay không. 
+
+has_superstructure_rc_non_engineered 
+được làm bằng bê tông cốt thép và không được thiết kế hay không. 
+
+(type:  binary):  cho  biết  kết  các 
+
+tầng  cao  có 
+
+has_superstructure_rc_engineered  (type:  binary):  cho  biết  liệu  các  tầng  cao  có  được 
+làm bằng bê tông cốt thép và được thiết kế hay không 
+
+has_superstructure_other  (type:  binary):  cho  biết  liệu  các  tầng  cao  có  được  làm  bằng 
+bất kỳ vật liệu nào khác. 
+
+xii. 
+
+xiii. 
+
+xiv. 
+
+xv. 
+
+xvi. 
+
+xvii. 
+
+xviii. 
+
+xix. 
+
+xx. 
+
+xxi. 
+
+has_secondary_use  (type:  binary):  cho  biết  tòa  nhà  có  được  sử  dụng  cho  bất  kỳ  mục 
+đích phụ nào hay không. 
+
+has_secondary_use_agriculture  (type:  binary):  cho  biết  tòa  nhà  có  được  sử  dụng  cho 
+mục đích nông nghiệp hay không. 
+
+has_secondary_use_hotel  (type:  binary):  cho  biết  tòa  nhà  có  được  sử  dụng  làm  khách 
+sạn hay không. 
+
+has_secondary_use_rental  (type:  binary):  cho  biết  tòa  nhà  có  được  sử  dụng  cho  mục 
+đích cho thuê hay không. 
+
+has_secondary_use_institution  (type:  binary):  cho  biết  tòa  nhà  có  được  sử  dụng  làm 
+địa điểm của bất kỳ tổ chức nào hay không. 
+
+has_secondary_use_school  (type:  binary):  cho  biết 
+trường học hay không. 
+
+tòa  nhà  có  được  sử  dụng 
+
+làm 
+
+has_secondary_use_industry  (type:  binary):  cho  biết  tòa  nhà  có  được  sử  dụng  cho  mục 
+đích công nghiệp hay không 
+
+has_secondary_use_health_post  (type:  binary):  cho  biết  tòa  nhà  có  được  sử  dụng  làm 
+trạm y tế - bệnh viện hay không. 
+
+has_secondary_use_gov_office  (type:  binary):  cho  biết  liệu  tòa  nhà  có  được  sử  dụng 
+bởi văn phòng chính phủ hay không. 
+
+has_secondary_use_use_police  (type:  binary):  cho  biết  tòa  nhà  có  được  sử  dụng  làm 
+đồn cảnh sát hay không. 
+
+xxii. 
+
+has_secondary_use_other  (type:  binary):  cho  biết  liệu  tòa  nhà  có  được  sử  dụng  cho 
+các mục đích khác 
+
+1.  Hãy sử dụng phương pháp Bernoulli NB đã có, huấn luyện mô hình trên tập training sau đó thực 
+
+hiện dự đoán trên tập test chỉ với các trường dữ liệu trên. 
+
+2.  Thực hiện lại với thư viện Sklearn và so sánh độ chính xác. 
+
+C. PHƯƠNG PHÁP NAÏVE BAYES CHO PHÂN LOẠI VĂN BẢN (DL RỜI RẠC) 
+
+Ví dụ 2. Ví dụ này chỉ mang tính minh họa cho việc phân loại văn bản.  Tuy nhiên phần chương trình có 
+thể sử dụng cho bài toán phân loại bằng phương pháp Multinomial NB trong trường hợp các trường dữ 
+liệu là dạng nhiều lựa chọn. 
+
+Giả sử tập training của chúng ta có 04 “văn bản”, được chia làm hai lớp là nội dung về miền bắc (B) và 
+nội dung về miền nam (N), cụ thể như sau: 
+
+Văn bản   Nội dung 
+D1 
+D2 
+D3 
+D4 
+
+Hà-Nội phở cháo-lòng Hà-Nội 
+Hà-Nội bún-chả phở ô-mai 
+Phở bánh-giò ô-mai 
+Sài-gòn hủ-tiếu bánh-bò phở 
+
+Thuộc lớp 
+B 
+B 
+B 
+N 
+
+Dựa vào tập training, cần dự đoán văn bản dưới đây thuộc lớp Bắc (B) hay Nam (N): 
+
+D5: Hà-Nội Hà-Nội bún-chả hủ-tiếu   ----  và D6: phở  hủ-tiếu bánh-bò. 
+
+Giải : Bài toán này có đầu ra là rời rạc (hai lớp) và dạng nhị phân (hoặc bắc hoặc nam) nên có thể được 
+giải quyết bằng một trong hai mô hình: Multinomial Naive Bayes hoặc Bernoulli Naive Bayes. 
+
+ 
+ 
+a.  Dùng Multinomial Naive Bayes: 
+
+-  Tìm p(B) và p(N): Trong tập training, 3/4 số văn bản thuộc lớp B; 1/4 thuộc lớp N, vậy p(B) = 3/4; 
+
+p(N) = 1/4. 
+
+-  Xác định từ điển, tức tập hợp toàn bộ các từ trong các văn bản, đánh chỉ số thứ tự các từ như sau: 
+
+V = { Hà-Nội, phở, cháo-lòng, bún-chả, ô-mai, bánh-giò, Sài-gòn, hủ-tiếu, bánh-bò} 
+
+Tổng số phần tử trong từ điển là |V| = 9. 
+
+-  Trong bước train, chúng ta sẽ phải lập các vector đặc trưng (feature vector) ứng với mỗi văn bản theo 
+cách: Vector sẽ có số chiều bằng số phần tử từ điển (là 9); Ứng với mỗi văn bản Dk trong tập training, 
+xét từ có chỉ số j trong từ điển xuất hiện xj lần trong văn bản (j=1, 2, …, 9), ta lập được vector đặc 
+trưng tương ứng là: xk = (x1, x2, … , x9). Cụ thể với tập training D1, D2, D3, D4 ta có 
+
+o  Với văn bản D1:    x1 = (2, 1, 1, 0, 0, 0, 0, 0, 0); (B) 
+
+o  Với văn bản D2:    x2 = (1, 1, 0, 1, 1, 0, 0, 0, 0); (B) 
+
+o  Với văn bản D3:    x3 = (0, 1, 0, 1, 1, 0, 0, 0, 0); (B) 
+
+o  Với văn bản D4:    x4 = (1, 0, 0, 0, 0, 0, 1, 1, 1); (N) 
+
+o  Với văn bản test  
+
+▪  D5: x5 = (2, 0, 0, 1, 0, 0, 0, 1, 0). 
+
+▪  D6: x6 = (0, 1, 0, 0, 0, 0, 0, 1, 1). 
+
+-  Tổng số lượt từ (kể cả lặp lại) xuất hiện trong các văn bản thuộc lớp B là: NB = 11; 
+
+-  Tổng số lượt từ (kể cả lặp lại) xuất hiện trong các văn bản thuộc lớp N là: NN = 4. 
+
+-  Tính các B
+
+j, j=1, 2, …,9 – tương ứng với các từ trong từ điển. Ví dụ: B
+
+2 = 3/20; B
+
+3 =B
+
+4 =B
+
+6 = 1/20; B
+
+1 = 3/20 (Từ Hà-Nội xuất 
+1 = 3/20; 
+
+5 = 2/20; B
+
+hiện 3 lần trong toàn bộ class B). Tương tự, B
+B
+
+9 = 0.  
+
+8 =B
+
+7 =B
+
+-  Tương ứng với các N
+
+j, j=1, 2, …,9: N
+
+2 = N
+7
+
+ = N
+8
+
+ = N
+9
+
+ = 1; N
+
+1= N
+3
+
+ = N
+4
+
+ =N
+ = N
+5
+
+6= 0. 
+
+-  Chúng ta áp dụng Laplace smoothing với α = 1. Bảng ở trang sau mô tả các tính toán tiếp theo. 
+
+Chú ý các giá trị tìm được ở trên không phải là xác suất để D5 rơi vào lớp B hay N, mà chỉ là một đại 
+lượng đồng biến với xác suất trên (do đó ta có cùng kết luận phân loại). Xác suất đúng sẽ là 
+
+Tương tự với D6, ta có kết quả: 
+
+Tức là D6 được dự đoán thuộc về class N. 
+
+b.  Sử dụng phương pháp NB Bernouli 
+
+-  Do đầu ra của dự đoán chỉ là 02 lớp (B hay N) tương đương dạng boolean (Đúng-Sai) nên có thể sử 
+
+dụng phương pháp Bernoulli trong nhưng bài toán dạng này. 
+
+-  Sử dụng NB Bernouli, chúng ta thay đổi vector đặc trưng (xem lại lý thuyết), tức là từ thứ j trong từ 
+điển xuất hiện trong tài liệu D thì ta đặt thành phần thứ j của vector là 1 (không quan tâm xuất hiện 
+bao nhiêu lần). Vậy 
+
+o  Với văn bản D1:    x1 = (1, 1, 1, 0, 0, 0, 0, 0, 0); (B) 
+
+o  Với văn bản D2:    x2 = (1, 1, 0, 1, 1, 0, 0, 0, 0); (B) 
+
+o  Với văn bản D3:    x3 = (0, 1, 0, 0, 1, 1, 0, 0, 0); (B) 
+
+o  Với văn bản D4:    x4 = (1, 0, 0, 0, 0, 0, 1, 1, 1); (N) 
+
+o  Với văn bản test  
+
+▪  D5: x5 = (1, 0, 0, 1, 0, 0, 0, 1, 0). 
+
+▪  D6: x6 = (0, 1, 0, 0, 0, 0, 0, 1, 1). 
+
+ 
+ 
+ 
+-  Tương tự phần trước, ta có p(B) = 3/4; p(N) = 1/4. Ta cần tính các P(i|C), tức là tỷ lệ từ thứ i trong từ 
+
+điển xuất hiện trong class C (C = N hoặc C = B) 
+
+o  Class B: P(1|B) = P(5|B) = 2/3  (2 văn bản xuất hiện từ Hà-Nội và ô-mai trong số 3 văn 
+
+bản); P(2|B) = 3/3; P(3|B) = P(4|B) = P(6|B) = 1/3; còn lại là 0. 
+
+o  Class N: P(2|N) = P(7|N) = P(8|N) = P(9|N) = 1/1; P(j|N) còn lại là 0. 
+
+-  Cuối cùng, ta tính xác suất D6 với x6 = (0, 1, 0, 0, 0, 0, 0, 1, 1) thuộc về các class như sau 
+
+o  P(B|D6) = P(B) . ∏ {𝑃(𝑖|𝐵)𝑥𝑖
+
+9
+𝑖=1
+
+o  P(N|D6) = P(N) . ∏ {𝑃(𝑖|𝑁)𝑥𝑖
+
+9
+𝑖=1
+
+6 + [1 − 𝑃(𝑖|𝐵)][1 − 𝑥𝑖
+6 + [1 − 𝑃(𝑖|𝑁)][1 − 𝑥𝑖
+
+6]}   ∝
+
+0.16948581 
+
+6]}   ∝
+
+0.83051419 
+
+-  Vậy D6 thuộc class N. 
+
+c.  Lập trình 
+
+-  Có thể lập trình bằng ngôn ngữ bất kỳ (Python/Java/C…) theo các bước như trên. 
+
+-  Nếu dùng Python, có thể sử dụng thư viện sklearn. Một số phương thức quan trọng phục vụ giải 
+
+bài toán phân loại theo phương pháp dạng Naïve Bayes: 
+
+o  Cần import thư viện sklearn.naive_bayes : 
+
+from sklearn.naive_bayes import MultinomialNB 
+
+o  Với tập dữ liệu (training_data, label) tương ứng đã khởi tạo, gọi các phương thức giải bài 
+
+toán phân loại với vector dữ liệu test đã có như sau 
+
+## call MultinomialNB 
+
+clf = MultinomialNB() 
+
+# training  
+
+clf.fit(train_data, label) 
+
+o  Các phương thức để in kết quả gồm  
+
+▪  str(clf.predict(test_data)[j])) để in ra class thứ j, class [0] sẽ là class được dự báo;  
+
+▪  clf.predict_proba(test_data)) in ra xác suất để test thuộc vào mỗi class. 
+
+-  Chương trình trong python theo phương pháp Multinomial Naïve Bayes: 
+
+from __future__ import print_function 
+
+from sklearn.naive_bayes import MultinomialNB 
+
+import numpy as np  
+
+# train data 
+
+d1 = [2, 1, 1, 0, 0, 0, 0, 0, 0] 
+
+d2 = [1, 1, 0, 1, 1, 0, 0, 0, 0] 
+
+d3 = [0, 1, 0, 0, 1, 1, 0, 0, 0] 
+
+d4 = [0, 1, 0, 0, 0, 0, 1, 1, 1] 
+
+ 
+ 
+train_data = np.array([d1, d2, d3, d4]) 
+
+label = np.array(['B', 'B', 'B', 'N'])  
+
+# test data 
+
+d5 = np.array([[2, 0, 0, 1, 0, 0, 0, 1, 0]]) 
+
+d6 = np.array([[0, 1, 0, 0, 0, 0, 0, 1, 1]]) 
+
+## call MultinomialNB 
+
+clf = MultinomialNB() 
+
+# training  
+
+clf.fit(train_data, label) 
+
+# test 
+
+print('Predicting class of d5:', str(clf.predict(d5)[0])) 
+
+print('Predicting class of d6:', str(clf.predict(d6)[0])) 
+
+print('Probability of d5 in each class:', clf.predict_proba(d5)) 
+
+print('Probability of d6 in each class:', clf.predict_proba(d6)) 
+
+-  Chương trình trong python theo phương pháp Bernoulli Naïve Bayes: 
+
+from __future__ import print_function 
+
+from sklearn.naive_bayes import BernoulliNB 
+
+import numpy as np  
+
+# train data 
+
+d1 = [1, 1, 1, 0, 0, 0, 0, 0, 0] 
+
+d2 = [1, 1, 0, 1, 1, 0, 0, 0, 0] 
+
+d3 = [0, 1, 0, 0, 1, 1, 0, 0, 0] 
+
+d4 = [0, 1, 0, 0, 0, 0, 1, 1, 1] 
+
+train_data = np.array([d1, d2, d3, d4]) 
+
+label = np.array(['B', 'B', 'B', 'N']) # 0 - B, 1 - N  
+
+# test data 
+
+d5 = np.array([[1, 0, 0, 1, 0, 0, 0, 1, 0]]) 
+
+d6 = np.array([[0, 1, 0, 0, 0, 0, 0, 1, 1]]) 
+
+## call MultinomialNB 
+
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+clf = BernoulliNB() 
+
+# training  
+
+clf.fit(train_data, label) 
+
+# test 
+
+print('Predicting class of d5:', str(clf.predict(d5)[0])) 
+
+print('Predicting class of d6:', str(clf.predict(d6)[0])) 
+
+print('Probability of d5 in each class:', clf.predict_proba(d5)) 
+
+print('Probability of d6 in each class:', clf.predict_proba(d6)) 
+
+Ví dụ 3. Phân loại email SPAM – NOT.SPAM bằng Naïve Bayes 
+
+-  Dữ liệu là tập con của bộ dữ liệu có tại link: https://metatext.io/datasets/ling-spam-dataset  . Tập dữ 
+liệu  này  bao  gồm  tổng  cộng  960  emails  tiếng  Anh,  được  tách  thành  tập  training  và  test  theo  tỉ  lệ 
+700:260, 50% trong mỗi tập là các spam emails. 
+
+-  Bộ dữ liệu đã được tiền xử lý theo các bước: 
+
+o  Loại bỏ stop words: Những từ xuất hiện thường xuyên như ‘and’, ‘the’, ‘of’, … 
+
+được loại bỏ. 
+
+o  Lemmatization: Những từ có cùng ‘gốc’ được đưa về cùng loại. Ví dụ, ‘include’, 
+‘includes’, ‘included’ đều được đưa chung về ‘include’. Tất cả các từ cũng đã được 
+đưa về dạng ký tự thường (không phải HOA). 
+
+o  Loại bỏ non-words: Số, dấu câu, ký tự ‘tabs’, ký tự ‘xuống dòng’ đã được loại bỏ. 
+
+-  Bộ dữ liệu sau xử lý có trong link sau: 
+
+http://openclassroom.stanford.edu/MainFolder/courses/MachineLearning/exercises/ex6materi
+als/ex6DataPrepared.zip  
+
+-  Các tệp sau khi giải nén:   
+
+test-features.txt 
+
+test-labels.txt 
+
+train-features-50.txt 
+
+train-features-100.txt 
+
+train-features-400.txt 
+
+train-features.txt 
+
+train-labels-50.txt 
+
+train-labels-100.txt 
+
+train-labels-400.txt 
+
+train-labels.txt 
+
+tương ứng với các file chứa dữ liệu của tập training và tập test. File train-features-50.txt chứa dữ liệu của 
+tập training thu gọn với chỉ có tổng cộng 50 training emails. 
+
+Mỗi file *labels*.txt chứa nhiều dòng, mỗi dòng là một ký tự 0 hoặc 1 thể hiện email là non-spam hoặc 
+spam.  
+
+Mỗi file *features*.txt chứa nhiều dòng, mỗi dòng có 3 số, ví dụ: 
+
+ 
+1 564 1 
+
+1 19 2 
+
+trong đó số đầu tiên là chỉ số của email, bắt đầu từ 1; số thứ hai là thứ tự của từ trong từ điển (tổng cộng 
+2500 từ); số thứ ba là số lượng của từ đó trong email đang xét. Dòng đầu tiên nói rằng trong email thứ 
+nhất, từ thứ 564 trong từ điển xuất hiện 1 lần. Cách lưu dữ liệu như thế này giúp tiết kiệm bộ nhớ vì 1 
+email thường không chứa hết tất cả các từ trong từ điển mà chỉ chứa một lượng nhỏ, ta chỉ cần lưu các giá 
+trị khác không. 
+
+Nếu ta biểu diễn feature vector của mỗi email là một vector hàng có độ dài bằng độ dài từ điển (2500) thì 
+dòng thứ nhất nói rằng thành phần thứ 564 của vector này bằng 1. Tương tự, thành phần thứ 19 của vector 
+này bằng 1. Nếu không xuất hiện, các thành phần khác được mặc định bằng 0. 
+
+Dựa trên các thông tin này, chúng ta có thể tiến hành lập trình với thư viện sklearn. 
+
+Khai báo thư viện và đường dẫn tới files: 
+
+## packages  
+
+from __future__ import division, print_function, unicode_literals 
+
+import numpy as np 
+
+from scipy.sparse import coo_matrix # for sparse matrix 
+
+from sklearn.naive_bayes import MultinomialNB, BernoulliNB 
+
+from sklearn.metrics import accuracy_score # for evaluating results 
+
+# data path and file name  
+
+path = 'ex6DataPrepared/' 
+
+train_data_fn = 'train-features.txt' 
+
+test_data_fn = 'test-features.txt' 
+
+train_label_fn = 'train-labels.txt' 
+
+test_label_fn = 'test-labels.txt' 
+
+Hàm số đọc dữ liệu từ file data_fn với labels tương ứng label_fn. Chú ý rằng số lượng từ trong từ điển là 
+2500. 
+
+Dữ liệu sẽ được lưu trong một ma trận mà mỗi hàng thể hiện một email. Ma trận này là một ma trận thưa 
+nên chúng ta sẽ sử dụng hàm scipy.sparse.coo_matrix 
+
+nwords = 2500  
+
+def read_data(data_fn, label_fn): 
+
+    ## read label_fn 
+
+    with open(path + label_fn) as f: 
+
+        content = f.readlines() 
+
+    label = [int(x.strip()) for x in content] 
+
+    ## read data_fn 
+
+ 
+ 
+ 
+    with open(path + data_fn) as f: 
+
+        content = f.readlines() 
+
+    # remove '\n' at the end of each line 
+
+    content = [x.strip() for x in content]  
+
+    dat = np.zeros((len(content), 3), dtype = int) 
+
+    for i, line in enumerate(content):  
+
+        a = line.split(' ') 
+
+        dat[i, :] = np.array([int(a[0]), int(a[1]), int(a[2])]) 
+
+    # remember to -1 at coordinate since we're in Python 
+
+    # check this: https://docs.scipy.org/doc/scipy/reference/generated/scipy.sparse.coo
+_matrix.html 
+
+    # for more information about coo_matrix function  
+
+    data = coo_matrix((dat[:, 2], (dat[:, 0] - 1, dat[:, 1] - 1)),\ 
+
+             shape=(len(label), nwords)) 
+
+    return (data, label) 
+
+Sau khi đọc training data và test data, sử dụng class MultinomialNB trong sklearn để xây dựng mô hình 
+và dự đoán đầu ra cho test data. 
+
+(train_data, train_label)  = read_data(train_data_fn, train_label_fn) 
+
+(test_data, test_label)  = read_data(test_data_fn, test_label_fn) 
+
+clf = MultinomialNB() 
+
+clf.fit(train_data, train_label) 
+
+y_pred = clf.predict(test_data) 
+
+Thử tự in kết quả ra để kiểm tra! 
+
+Ví dụ 4. Tệp dữ liệu multinomial_nb_orders.csv đính kèm chứa dữ liệu phi văn bản với các trường 
+dạng category (nhiều lựa chọn). Bối cảnh là đơn đặt món ăn online, cần dự đoán loại ẩm thực (cuisine) 
+từ nhiều thuộc tính rời rạc: 
+
+• 
+
+• 
+
+city (20 lựa chọn), device (5), user_segment (6), promo (8 + “none”), 
+
+fav_ingredient (20), spice_level (5), day_of_week (7), price_bucket (5) 
+
+Nhãn cần dự báo: cuisine với 10 lớp (thai, vietnamese, indian, japanese, …, chinese). Hãy xây dựng 
+chương trình thực hiện việc đọc dữ liệu từ tệp CSV, sau đó chia dữ liệu theo tỉ lệ train:test = 7:3; Thực 
+hiện huấn luyện bằng mô hình Multinomial Naïve Bayes trên tập Train và thực hiện dự đoán cũng như 
+đánh giá kết quả trên tập Test. 
+
+ 
+     
+     
+ 
+ 
+ 
+ 
+

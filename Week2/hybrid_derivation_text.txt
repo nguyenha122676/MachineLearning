@@ -1,0 +1,288 @@
+Total pages: 5
+
+=== PAGE 1 ===
+We will start by examining the mathematics that justify the standard Multinomial Naïve
+Bayes model.
+Before moving forward, we will define a series of variables and notations. Let 𝑥 be the
+vector of training data points, 𝑦 be the vector of possible classes to which data points can
+belong, z be an observed data point whose class we do not know, and 𝜙 𝑧 be the feature
+vector of binary values associated with data point 𝑧. Furthermore, let P(a) represent the
+probability of event a, and c(a) represent the count of a: the number of times a was
+observed in training. Lastly, let 𝜆 represent our Laplace Smoothing parameter.
+We will start by examining simple probabilities:
+!
+c 𝑦 = 1 𝑥 ∈ 𝑦 = 1
+! ! !
+!!! !!: !!∈!!
+c 𝑦
+!
+P 𝑦 =
+!
+|𝑥|
+!
+c 𝑦 ,𝜙 = 1 𝑥 ∈ y ,𝜙 𝑥 = 1 = 1
+! ! ! ! ! !
+!!! !!: !!∈!!,! !! !!!
+c 𝑦 ,𝜙 +𝜆
+! !
+P 𝑦 ,𝜙 =
+! !
+𝑥 +𝜆∗|𝜙|
+c 𝑦 ,𝜙 = 𝜙 𝑧 +𝜆
+! 𝑘 𝑘
+P 𝑦 ,𝜙 = 𝜙 𝑧 𝑥 +𝜆∗ 𝜙
+! ! !
+P 𝜙 = 𝜙 𝑧 |𝑦 = =
+! ! !
+P 𝑦 c 𝑦
+! !
+𝑥
+c 𝑦 ,𝜙 = 𝜙 𝑧 +𝜆 ∗|𝑥|
+! 𝑘 𝑘
+=
+𝑥 +𝜆∗|𝜙| ∗c 𝑦
+!
+By the Law of Total Probability:
+!
+P 𝜙 𝑧 = P 𝑦 ∗P 𝜙 𝑧 |𝑦
+! !
+!!!
+Finally, we will calculate the conditional probability of class 𝑦 given observed data point 𝑧:
+!
+P 𝑦 ∗P 𝜙 𝑧 |𝑦 P 𝑦 ∗P 𝜙 𝑧 |𝑦
+! ! ! !
+P 𝑦 |𝑧 ≈ P 𝑦 |𝜙 𝑧 = =
+! ! P 𝜙 𝑧 ! P 𝑦 ∗P 𝜙 𝑧 |𝑦
+ℓ𝓁!! ℓ𝓁 ℓ𝓁
+
+=== PAGE 2 ===
+By the Naïve Bayes assumption, assuming feature values are independent when conditioned
+upon classes 𝑦 :
+!
+!
+P 𝜙 𝑧 |𝑦 = P 𝜙 𝑧 |𝑦
+! ! !
+!!!
+P 𝑦 ∗P 𝜙 𝑧 |𝑦 P 𝑦 ∗ ! P 𝜙 = 𝜙 𝑧 |𝑦
+! ! ! !!! 𝑘 𝑘 !
+⟹ ≈
+! P 𝑦 ∗P 𝜙 𝑧 |𝑦 ! P 𝑦 ∗ ! P 𝜙 = 𝜙 𝑧 |𝑦
+ℓ𝓁!! ℓ𝓁 ℓ𝓁 ℓ𝓁!! ℓ𝓁 !!! 𝑘 𝑘 ℓ𝓁
+c 𝑦 c 𝑦 ,𝜙 = 𝜙 𝑧 +𝜆 ∗|𝑥|
+! ∗ ! ! 𝑘 𝑘
+|𝑥| !!! 𝑥 +𝜆∗|𝜙| ∗c 𝑦
+!
+=
+! c 𝑦 ℓ𝓁 ∗ ! c 𝑦 ℓ𝓁 ,𝜙 𝑘 = 𝜙 𝑧 𝑘 +𝜆 ∗|𝑥|
+ℓ𝓁!! |𝑥| !!! 𝑥 +𝜆∗|𝜙| ∗c 𝑦
+ℓ𝓁
+!!! !
+c 𝑦 ∗ c 𝑦 ,𝜙 𝑧 +𝜆
+! !!! ! !
+=
+! c 𝑦 !!! ∗ ! c 𝑦 ,𝜙 𝑧 +𝜆
+ℓ𝓁!! ℓ𝓁 !!! ℓ𝓁 !
+≈ P 𝑦 |𝑧
+!
+Now, we will move on to our examination of the slightly more complex Gaussian Naïve
+Bayes model. Let 𝒩 𝜙 𝑧 be the Gaussian probability density function (PDF) of 𝜙 given
+!" ! !
+𝑦 . In other words:
+!
+𝒩 𝜙 𝑧 = Gaussian PDF of 𝜙 | 𝑦
+!" ! ! !
+For an infinitesimally small 𝜖, the probability that normally distributed feature 𝜙 𝑧
+!
+associated with observed data point 𝑧 takes on a certain value given 𝑧 belongs to class 𝑦 is
+!
+the following:
+! ! !!!
+!
+P 𝜙 = 𝜙 𝑧 𝑦 = 𝒩 𝜙 𝑑𝜙 = 𝜖∗ 𝒩 𝜙 𝑧
+! ! ! !" ! ! !" !
+! ! !!!
+!
+Note that because we chose 𝜖 to be infinitesimally small, this quantity will and should be
+zero, as is the probability of any continuous variable taking on a single value. However, as
+will become clear in a moment, leaving the expression in terms of 𝜖 will allow us to simplify
+expressions considered in the future to well-­‐defined, non-­‐zero values.
+We will remember from our calculations regarding the Multinomial Naïve Bayes model that
+the following is true, given our model assumptions:
+!
+P 𝑦 ∗ P 𝜙 = 𝜙 𝑧 |𝑦
+! !!! ! ! !
+P 𝑦 |𝑧 ≈ P 𝑦 |𝜙 𝑧 ≈
+! ! ! !
+P 𝑦 ∗ P 𝜙 = 𝜙 𝑧 |𝑦
+ℓ𝓁!! ℓ𝓁 !!! ! ! ℓ𝓁
+
+=== PAGE 3 ===
+However, we now define P 𝜙 = 𝜙 𝑧 |𝑦 differently than before. As a result, our
+! ! !
+expression for the conditional probability of class 𝑦 given observed data point 𝑧 will
+!
+simplify to the following.
+!
+P 𝑦 ∗ P 𝜙 = 𝜙 𝑧 |𝑦
+! !!! ! ! !
+! !
+P 𝑦 ∗ P 𝜙 = 𝜙 𝑧 |𝑦
+ℓ𝓁!! ℓ𝓁 !!! ! ! ℓ𝓁
+c 𝑦
+! !
+∗ 𝜖∗ 𝒩 𝜙 𝑧
+|𝑥| !!! !" !
+=
+! c 𝑦 ℓ𝓁 ∗ ! 𝜖∗ 𝒩 𝜙 𝑧
+ℓ𝓁!! |𝑥| !!! ℓ𝓁! !
+!
+c 𝑦 ∗ 𝒩 𝜙 𝑧
+! !!! !" !
+=
+! !
+c 𝑦 ∗ 𝒩 𝜙 𝑧
+ℓ𝓁!! ℓ𝓁 !!! ℓ𝓁! !
+≈ P 𝑦 |𝑧
+!
+Finally, we will examine the most generalized representation of the Naïve Bayes model
+possible. We will simultaneously incorporate categorical discrete features, ordered discrete
+features, normally distributed continuous features and arbitrarily distributed continuous
+features.
+For discrete features, the conditional probability of class 𝑦 given feature value 𝜙 𝑧
+! !
+associated with observed data point 𝑧 is simply the value of the probability mass function
+we model 𝜙 with. We denote the probability mass function of feature 𝜙 given class 𝑦 as
+! ! !
+𝑝 . As was previously discussed, this probability mass function takes on the following form
+!"
+for discrete binary features:
+c 𝑦 ,𝜙 = 𝜙 𝑧 +𝜆 ∗|𝑥|
+! ! !
+P 𝜙 = 𝜙 𝑧 |𝑦 = 𝑝 𝜙 𝑧 =
+! ! ! !" !
+𝑥 +𝜆∗|𝜙| ∗c 𝑦
+!
+For discrete features that do not take on binary values, we must learn the probability mass
+functions 𝑝 they conform to during training. First, we must choose the probability mass
+!"
+function we will model feature 𝜙 with. Subsequently, one typically uses maximum
+!
+likelihood estimation (MLE) to learn the most likely parameterization the probability mass
+function modeling 𝜙 given the training data available. For example, the maximum
+!
+likelihood estimate for the commonly used Poisson distribution’s single parameter 𝜆, not to
+be confused with the Laplace Smoother parameter 𝜆, takes on the following form:
+𝜙 𝑥
+𝜆 =
+!!∈!! ! !
+!",!"#
+c 𝑦
+!
+For continuous valued features, the conditional probability of class 𝑦 given feature value
+!
+𝜙 𝑧 associated with observed data point 𝑧 is slightly more complicated. As mentioned
+!
+
+=== PAGE 4 ===
+during our discussion of the Gaussian Naïve Bayes model, the probability that a normally
+distributed feature value takes on a given value is the following:
+! ! !!!
+!
+P 𝜙 = 𝜙 𝑧 𝑦 = 𝒩 𝜙 𝑑𝜙 = 𝜖∗ 𝒩 𝜙 𝑧
+! ! ! !" ! ! !" !
+! ! !!!
+!
+Fortunately, this math remains identical regardless of the specific probability density
+function involved. We denote the probability density function of feature 𝜙 given class 𝑦 as
+! !
+𝑓 . Thus the probability that any continuous feature with probability density function
+!"
+𝑓 takes on a given value is the following:
+!"
+! ! !!!
+!
+P 𝜙 = 𝜙 𝑧 𝑦 = 𝑓 𝜙 𝑑𝜙 = 𝜖∗ 𝑓 𝜙 𝑧
+! ! ! !" ! ! !" !
+! ! !!!
+!
+As with discrete features, we must learn the probability density functions continuous
+features conform to during training, typically using maximum likelihood estimation. To
+provide an example of learning one such distribution from training data, we will examine
+the most common distribution used to model continuous feature values in the context of the
+Naïve Bayes model: the Gaussian distribution. The maximum likelihood estimate for its
+parameters 𝜇 and 𝜎 are simply the mean and standard deviation of the appropriate feature
+values encountered in training:
+𝜙 𝑥
+𝜇 =
+!!∈!! ! !
+!",!"#
+c 𝑦
+!
+!
+𝜙 𝑥 −𝜇
+𝜎 =
+!!∈!! ! ! !",!"#
+!",!"#
+c 𝑦
+!
+Having established our representations of the conditional probabilities of class 𝑦 given
+!
+both discrete and ordered feature values we can move on to calculating the conditional
+probability of class 𝑦 given observed data point 𝑧. As noted previously:
+!
+!
+P 𝑦 ∗ P 𝜙 = 𝜙 𝑧 |𝑦
+! !!! ! ! !
+P 𝑦 |𝑧 ≈ P 𝑦 |𝜙 𝑧 ≈
+! ! ! !
+P 𝑦 ∗ P 𝜙 = 𝜙 𝑧 |𝑦
+ℓ𝓁!! ℓ𝓁 !!! ! ! ℓ𝓁
+Inserting our newly defined expressions for the conditional probabilities involved:
+!
+P 𝑦 ∗ P 𝜙 = 𝜙 𝑧 |𝑦
+! !!! ! ! !
+! !
+P 𝑦 ∗ P 𝜙 = 𝜙 𝑧 |𝑦
+ℓ𝓁!! ℓ𝓁 !!! ! ! ℓ𝓁
+
+=== PAGE 5 ===
+𝑝 𝜙 𝑧 |𝑦 𝑖𝑓 𝑑𝑖𝑠𝑐𝑟𝑒𝑡𝑒
+! !" ! !
+P 𝑦 ∗
+! !!! 𝜖∗𝑓 𝜙 𝑧 |𝑦 𝑜𝑡ℎ𝑒𝑟𝑤𝑖𝑠𝑒
+!" ! !
+=
+𝑝 𝜙 𝑧 |𝑦 𝑖𝑓 𝑑𝑖𝑠𝑐𝑟𝑒𝑡𝑒
+! ! !" ! ℓ𝓁
+P 𝑦 ∗
+ℓ𝓁!! ℓ𝓁 !!! 𝜖∗𝑓 𝜙 𝑧 |𝑦 𝑜𝑡ℎ𝑒𝑟𝑤𝑖𝑠𝑒
+!" ! ℓ𝓁
+P 𝑦 ∗ 𝑝 𝜙 𝑧 |𝑦 ∗ 𝜖∗𝑓 𝜙 𝑧 |𝑦
+=
+! !:!! !"#$%&'& !" ! ! !:!! !"#$%#&"&' !" ! !
+!
+P 𝑦 ∗ 𝑝 𝜙 𝑧 |𝑦 ∗ 𝜖∗𝑓 𝜙 𝑧 |𝑦
+ℓ𝓁!! ℓ𝓁 !:!! !"#$%&'& !" ! ℓ𝓁 !:!! !"#$%#&"&' !" ! ℓ𝓁
+!
+P 𝑦 ∗ 𝑝 𝜙 𝑧 |𝑦 ∗ 𝑓 𝜙 𝑧 |𝑦 ∗𝜖 !!!
+!!! !"#$%#&"&'
+=
+! !:!! !"#$%&'& !" ! ! !:!! !"#$%#&"&' !" ! !
+!
+!
+P 𝑦 ∗ 𝑝 𝜙 𝑧 |𝑦 ∗ 𝑓 𝜙 𝑧 |𝑦 ∗𝜖 !!!
+!!! !"#$%#&"&'
+ℓ𝓁!! ℓ𝓁 !:!! !"#$%&'& !" ! ℓ𝓁 !:!! !"#$%#&"&' !" ! ℓ𝓁
+P 𝑦 ∗ 𝑝 𝜙 𝑧 |𝑦 ∗ 𝑓 𝜙 𝑧 |𝑦
+=
+! !:!! !"#$%&'& !" ! ! !:!! !"#$%#&"&' !" ! !
+!
+P 𝑦 ∗ 𝑝 𝜙 𝑧 |𝑦 ∗ 𝑓 𝜙 𝑧 |𝑦
+ℓ𝓁!! ℓ𝓁 !:!! !"#$%&'& !" ! ℓ𝓁 !:!! !"#$%#&"&' !" ! ℓ𝓁
+≈ P 𝑦 |𝑧
+!
+We have finally arrived at an expression for the conditional probability of class 𝑦 given
+!
+observed data point 𝑧 that supports categorical, ordered discrete and ordered continuous
+feature values.
+
